@@ -8,6 +8,11 @@ from bpy_types import PropertyGroup
 
 # this helper creates a "fake"/wrapper property group that is NOT a real type in the registry
 # usefull for things like value types in list items etc
+def create_property_group_name(long_name, nesting_long_names):
+    # Combine nesting_long_names and long_name into a unique string
+    prefix = "_".join(nesting_long_names) if nesting_long_names else ""
+    return f"{prefix}_{long_name}" if prefix else long_name
+
 def generate_wrapper_propertyGroup(wrapped_type_long_name, item_long_name, definition_link, registry, update, nesting_long_names=[]):
     value_types_defaults = registry.value_types_defaults 
     blender_property_mapping = registry.blender_property_mapping

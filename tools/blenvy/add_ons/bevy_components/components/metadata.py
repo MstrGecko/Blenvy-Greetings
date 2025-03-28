@@ -6,6 +6,8 @@ from ..propGroups.conversions_from_prop_group import property_group_value_to_cus
 from ..propGroups.conversions_to_prop_group import property_group_value_from_custom_property_value
 from ..utils import add_component_to_ui_list
 
+import logging
+
 class ComponentMetadata(bpy.types.PropertyGroup):
     short_name : bpy.props.StringProperty(
         name = "name",
@@ -218,9 +220,16 @@ def upsert_component_in_item(item, long_name, registry):
             component_meta = target_components_metadata.add()
             component_meta.short_name = short_name
             component_meta.long_name = long_name
-            propertyGroup = getattr(component_meta, property_group_name, None)
         else: # this one has metadata but we check that the relevant property group is present
-            propertyGroup = getattr(component_meta, property_group_name, None)
+            pass
+
+        # Check if property_group_name is None
+        if property_group_name is None:
+            logging.error(f"Failed to find property group for component {long_name} in item {item.name}")
+            return (None, None)  # Skip this component
+
+        # Now safe to use getattr
+        propertyGroup = getattr(component_meta, property_group_name, None)
 
         # try to inject propertyGroup if not present
         if propertyGroup == None:

@@ -1,4 +1,4 @@
-use bevy::ecs::world::Command;
+//use bevy::ecs::world::Command;
 use bevy::prelude::*;
 use std::any::TypeId;
 
@@ -6,7 +6,7 @@ use std::any::TypeId;
 // more specifically https://gist.github.com/nwtnni/85d6b87ae75337a522166c500c9a8418
 // to work with Bevy 0.11
 // to copy components between entities but NOT overwriting any existing components
-// plus some bells & whistles
+// plus some bells & whistlesc:\Users\rippl\OneDrive\Desktop\spawn_from_blueprints.rs
 pub struct CopyComponents {
     pub source: Entity,
     pub destination: Entity,
@@ -105,8 +105,8 @@ impl CopyComponents {
 }
 
 // This allows the command to be used in systems
-impl Command for CopyComponents {
-    fn apply(self, world: &mut World) {
+impl bevy::ecs::world::Command for CopyComponents {
+    fn apply(self, world: &mut bevy::ecs::world::World) {
         self.transfer_components(world);
     }
 }

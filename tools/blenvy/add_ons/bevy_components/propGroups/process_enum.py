@@ -1,7 +1,7 @@
 from bpy.props import (StringProperty)
 from . import process_component
 
-def process_enum(registry, definition, update, nesting_long_names):
+def process_enum(registry, definition, enum_values, update, nesting_long_names, depth=0, processed_types=None):
     blender_property_mapping = registry.blender_property_mapping
     long_name = definition["long_name"]
 

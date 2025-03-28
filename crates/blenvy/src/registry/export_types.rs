@@ -14,6 +14,8 @@ pub fn export_types(world: &mut World) {
 
     let asset_root = world.resource::<AssetRoot>();
     let registry_save_path = Path::join(&asset_root.0, &config.registry_save_path);
+    println!("Trying to create file at: {:?}", registry_save_path);
+    
     let writer = File::create(registry_save_path).expect("should have created schema file");
 
     let components_to_filter_out = &config.registry_component_filter.clone();
@@ -157,21 +159,23 @@ pub fn export_type(reg: &TypeRegistration) -> (String, Value) {
                 "long_name": t.type_path(),
                 "type": "array",
                 "typeInfo": "List",
-                "items": json!({"type": typ(info.item_type_path_table().path())}),
+               // Changed from info.item_type_path_table to type_path_table
+                "items": json!({"type": typ(info.type_path_table().path())}),
             })
         }
         TypeInfo::Array(info) => json!({
             "long_name": t.type_path(),
             "type": "array",
             "typeInfo": "Array",
-            "items": json!({"type": typ(info.item_type_path_table().path())}),
+            // Changed from info.item_type_path_table to type_path_table
+            "items": json!({"type": typ(info.type_path_table().path())}),
         }),
         TypeInfo::Map(info) => json!({
             "long_name": t.type_path(),
             "type": "object",
             "typeInfo": "Map",
-            "valueType": json!({"type": typ(info.value_type_path_table().path())}),
-            "keyType": json!({"type": typ(info.key_type_path_table().path())}),
+            "valueType": json!({"type": typ(info.type_path_table().path())}),
+            "keyType": json!({"type": typ(info.type_path_table().path())}),
         }),
         TypeInfo::Tuple(info) => json!({
             "long_name": t.type_path(),
@@ -184,10 +188,17 @@ pub fn export_type(reg: &TypeRegistration) -> (String, Value) {
                 .collect::<Vec<_>>(),
             "items": false,
         }),
-        TypeInfo::Value(info) => json!({
+        TypeInfo::Opaque(info) => json!({
             "long_name": t.type_path(),
             "type": map_json_type(info.type_path()),
             "typeInfo": "Value",
+        }),
+        TypeInfo::Set(info) => json!({
+            "long_name": t.type_path(),
+            "type": "array",
+            "typeInfo": "Set",
+            "items": json!({"type": typ(info.type_path_table().path())}),
+            "uniqueItems": true, // Enforce uniqueness for Set
         }),
     };
     schema.as_object_mut().unwrap().insert(

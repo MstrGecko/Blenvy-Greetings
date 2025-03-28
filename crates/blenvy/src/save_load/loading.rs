@@ -82,16 +82,13 @@ pub(crate) fn load_game(
     // and we fill it with dynamic data
     // let input = std::fs::read(&path)?;
     let _dynamic_data = commands
-        .spawn((
-            DynamicSceneBundle {
-                scene: asset_server.load(load_request.path.clone()),
-                ..default()
-            },
-            bevy::prelude::Name::from("World_dynamic"),
-            DynamicEntitiesRoot,
-            GameWorldTag,
-        ))
-        .id();
+    .spawn((
+        DynamicSceneRoot(asset_server.load(load_request.path.clone())), // Must be Handle<DynamicScene> 
+        bevy::prelude::Name::from("World_dynamic"),
+        DynamicEntitiesRoot,
+        GameWorldTag,
+    ))
+    .id();
 
     let _static_data = commands
         .spawn((

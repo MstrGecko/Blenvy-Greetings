@@ -62,13 +62,13 @@ fn setup_game(mut commands: Commands) {
 fn spawn_blueprint_instance(keycode: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
     if keycode.just_pressed(KeyCode::KeyT) {
         // random position
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let range = 5.5;
-        let x: f32 = rng.gen_range(-range..range);
-        let y: f32 = rng.gen_range(-range..range);
+        let x: f32 = rng.random_range(-range..range);
+        let y: f32 = rng.random_range(-range..range);
 
         // random name
-        let name_index: u64 = rng.gen();
+        let name_index: u64 = rng.random();
 
         commands.spawn((
             BlueprintInfo::from_path("blueprints/test.glb"),
@@ -77,7 +77,7 @@ fn spawn_blueprint_instance(keycode: Res<ButtonInput<KeyCode>>, mut commands: Co
             bevy::prelude::Name::from(format!("test{}", name_index)),
             HideUntilReady,
             AddToGameWorld,
-            TransformBundle::from_transform(Transform::from_xyz(x, 2.0, y)),
+            Transform::from_xyz(x, 2.0, y)
         ));
     }
 }

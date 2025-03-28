@@ -6,6 +6,10 @@ from .process_component import process_component
 from .utils import update_calback_helper
 from ..utils import get_selected_item
 
+import logging
+
+print("DEBUG: Loading updated prop_groups.py with logging import")
+
 ## main callback function, fired whenever any property changes, no matter the nesting level
 def update_component(self, context, definition, component_name):
     registry = bpy.context.window_manager.components_registry
@@ -34,10 +38,17 @@ def generate_propertyGroups_for_components():
 
     type_infos = registry.type_infos
 
-    for root_type_name in type_infos:
-        definition = type_infos[root_type_name]
-        #print("root property", component_name,f"({is_component})")
-        process_component(registry, definition, update_calback_helper(definition, update_component, root_type_name), extras=None, nesting_long_names=[])
-        
-    # if we had to add any wrapper types on the fly, process them now
+    # Process types under "$defs"
+    if "$defs" in type_infos:
+        for type_name, definition in type_infos["$defs"].items():
+            logging.debug(f"Processing $defs type: {type_name}")
+            process_component(registry, definition, update_calback_helper(definition, update_component, type_name), {"nested": False}, nesting_long_names=[])
+
+    # Process types under "components"
+    if "components" in type_infos:
+        for type_name, definition in type_infos["components"].items():
+            logging.debug(f"Processing component type: {type_name}")
+            process_component(registry, definition, update_calback_helper(definition, update_component, type_name), {"nested": False}, nesting_long_names=[])
+
+    # If we had to add any wrapper types on the fly, process them now
     registry.process_custom_types()

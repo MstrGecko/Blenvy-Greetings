@@ -8,6 +8,7 @@ from bpy.props import (StringProperty, BoolProperty, FloatProperty, FloatVectorP
 from ..components.metadata import ComponentMetadata
 from .hashing.tiger import hash as tiger_hash
 
+import logging
 
 # helper class to store missing bevy types information
 class MissingBevyType(bpy.types.PropertyGroup):
@@ -65,17 +66,17 @@ class ComponentsRegistry(PropertyGroup):
 
         "glam::Vec2": {"type": FloatVectorProperty, "presets": dict(size = 2) },
         "glam::DVec2": {"type": FloatVectorProperty, "presets": dict(size = 2) },
-        "glam::UVec2": {"type": IntVectorProperty, "presets": {"size": 2, "min": 0} },
+        "glam::UVec2": {"type": FloatVectorProperty, "presets": dict(size = 2) },
 
         "glam::Vec3": {"type": FloatVectorProperty, "presets": {"size":3} },
         "glam::Vec3A":{"type": FloatVectorProperty, "presets": {"size":3} },
         "glam::DVec3":{"type": FloatVectorProperty, "presets": {"size":3} },
-        "glam::UVec3":{"type": IntVectorProperty, "presets": {"size":3, "min":0} },
+        "glam::UVec3":{"type": FloatVectorProperty, "presets": {"size":3} },
 
         "glam::Vec4": {"type": FloatVectorProperty, "presets": {"size":4} },
         "glam::Vec4A": {"type": FloatVectorProperty, "presets": {"size":4} },
         "glam::DVec4": {"type": FloatVectorProperty, "presets": {"size":4} },
-        "glam::UVec4":{"type": IntVectorProperty, "presets": {"size":4, "min":0} },
+        "glam::UVec4":{"type": FloatVectorProperty, "presets": {"size":4, "min":0.0} },
 
         "glam::Quat": {"type": FloatVectorProperty, "presets": {"size":4} },
 
@@ -182,35 +183,46 @@ class ComponentsRegistry(PropertyGroup):
         del bpy.types.WindowManager.components_registry
 
     def load_schema(self):
-        print("load schema", self)
-        blenvy = bpy.context.window_manager.blenvy
-        component_settings = blenvy.components
+        import os.path
+        import bpy
+        settings = bpy.context.window_manager.components_settings
+        schema_path = settings.schema_path
+        project_root_path = settings.project_root_path
 
-        # cleanup previous data if any
-        self.long_names_to_propgroup_names.clear()
-        self.missing_types_list.clear()
-        self.type_infos.clear()
-        self.type_infos_missing.clear()
+        # Get the directory of the current Blender file
+        if bpy.data.filepath:
+            blend_file_dir = os.path.dirname(bpy.data.filepath)
+        else:
+            blend_file_dir = os.getcwd()  # Fallback to current working directory if no file is open
+        logging.debug(f"Blender file directory: {blend_file_dir}")
 
-        self.component_propertyGroups.clear()
-        self.component_property_group_classes.clear()
+        # Resolve project_root_path relative to the Blender file's directory
+        project_root_path = os.path.abspath(os.path.join(blend_file_dir, project_root_path))
+        logging.debug(f"Project root path resolved to: {project_root_path}")
 
-        self.custom_types_to_add.clear()
-        self.invalid_components.clear()
-        # now prepare paths to load data
+        # Join the paths to get the absolute path to schema_path
+        schema_path = os.path.abspath(os.path.join(project_root_path, schema_path))
+        logging.debug(f"Schema path resolved to: {schema_path}")
 
-        with open(component_settings.schema_path_full) as f: 
-            data = json.load(f) 
-            defs = data["$defs"]
-            self.registry = json.dumps(defs) # FIXME:meh ?
-
-        component_settings.start_schema_watcher()       
+        try:
+            with open(schema_path, "r") as f:
+                file_contents = f.read()
+                logging.debug(f"Contents of registry.json: {file_contents}")
+                self.schema = json.loads(file_contents)
+        except FileNotFoundError as e:
+            logging.error(f"Failed to load registry.json: File not found at {schema_path}")
+            raise e
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to parse registry.json: Invalid JSON - {str(e)}")
+            raise e
+        self.schemaTimeStamp = str(os.path.getmtime(schema_path))
 
 
     # we load the json once, so we do not need to do it over & over again
     def load_type_infos(self):
         print("load type infos")
-        ComponentsRegistry.type_infos = json.loads(self.registry)
+        self.load_schema()  # Ensure the schema is loaded
+        ComponentsRegistry.type_infos = self.schema
     
     def has_type_infos(self):
         return len(self.type_infos.keys()) != 0
@@ -246,7 +258,7 @@ class ComponentsRegistry(PropertyGroup):
         (property_group_pointer, property_group_class) = property_group_from_infos(property_group_name, property_group_params)
         self.component_propertyGroups[property_group_name] = property_group_pointer
         self.component_property_group_classes.append(property_group_class)
-
+        logging.debug(f"After registering {nesting['long_name']}, long_names_to_propgroup_names: {self.long_names_to_propgroup_names}")
         return (property_group_pointer, property_group_class)
 
     # generate propGroup name from nesting level: each longName + nesting is unique
@@ -267,9 +279,14 @@ class ComponentsRegistry(PropertyGroup):
         return propGroupName
     
     def get_propertyGroupName_from_longName(self, longName):
-        return self.long_names_to_propgroup_names.get(str([longName]), None)
-
-    ###########
+        key = str({"long_name": longName, "nested": False})
+        logging.debug(f"Looking up property group for {longName} with key {key}")
+        logging.debug(f"Current long_names_to_propgroup_names: {self.long_names_to_propgroup_names}")
+        result = self.long_names_to_propgroup_names.get(key, None)
+        if result is None:
+            logging.warning(f"Property group not found for {longName} with key {key}")
+        return result
+        ###########
 
 """
     object[component_definition.name] = 0.5

@@ -27,7 +27,7 @@ pub(crate) fn plugin(app: &mut App) {
 #[derive(Component, Reflect, Default, Debug, PartialEq, Clone)]
 #[reflect(Component)]
 #[non_exhaustive]
-/// The properties of a light's shadow , to enable controlling per light shadows from Blender
+/// The properties of a light's shadow, to enable controlling per light shadows from Blender
 pub struct BlenderLightShadows {
     pub enabled: bool,
     pub buffer_bias: f32,
@@ -69,6 +69,7 @@ pub struct BlenderColorGrading {
     gamma: f32,
 }
 
+// Systems remain unchanged...
 fn process_lights(
     mut directional_lights: Query<
         (&mut DirectionalLight, Option<&BlenderLightShadows>),
@@ -87,7 +88,6 @@ fn process_lights(
             light.shadows_enabled = blender_light_shadows.enabled;
         }
     }
-
     for (mut light, blender_light_shadows) in point_lights.iter_mut() {
         if let Some(blender_light_shadows) = blender_light_shadows {
             light.shadows_enabled = blender_light_shadows.enabled;
@@ -113,14 +113,12 @@ fn process_background_shader(
     for background_shader in background_shaders.iter() {
         commands.insert_resource(AmbientLight {
             color: background_shader.color,
-            // Just a guess, see <https://github.com/bevyengine/bevy/issues/12280>
             brightness: background_shader.strength * 400.0,
         });
         commands.insert_resource(ClearColor(background_shader.color));
     }
 }
 
-// FIXME: this logic should not depend on if toneMapping or Cameras where added first
 fn process_tonemapping(
     tonemappings: Query<(Entity, &BlenderToneMapping), Added<BlenderToneMapping>>,
     cameras: Query<Entity, With<Camera>>,
@@ -130,15 +128,12 @@ fn process_tonemapping(
         for (scene_id, tone_mapping) in tonemappings.iter() {
             match tone_mapping {
                 BlenderToneMapping::None => {
-                    //debug!("TONEMAPPING NONE");
                     commands.entity(entity).remove::<Tonemapping>();
                 }
                 BlenderToneMapping::AgX => {
-                    //debug!("TONEMAPPING Agx");
                     commands.entity(entity).insert(Tonemapping::AgX);
                 }
                 BlenderToneMapping::Filmic => {
-                    //debug!("TONEMAPPING Filmic");
                     commands.entity(entity).insert(Tonemapping::BlenderFilmic);
                 }
             }
@@ -147,7 +142,6 @@ fn process_tonemapping(
     }
 }
 
-// FIXME: this logic should not depend on if toneMapping or Cameras where added first
 fn process_colorgrading(
     blender_colorgradings: Query<(Entity, &BlenderColorGrading), Added<BlenderColorGrading>>,
     cameras: Query<Entity, With<Camera>>,

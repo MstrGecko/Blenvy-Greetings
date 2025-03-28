@@ -1,15 +1,27 @@
 bl_info = {
-    "name": "blenvy",
-    "author": "kaosigh",
-    "version": (0, 1, 0, "alpha.1"),
+    "name": "blenvy-greetings",
+    "author": "mstrgecko",
+    "version": (0, 1, 1, "alpha.1"),
     "blender": (3, 4, 0),
     "location": "File > Import-Export",
-    "description": "tooling for the Bevy engine",
+    "description": "tooling for the Bevy-0.15 engine",
     "warning": "",
-    "wiki_url": "https://github.com/kaosat-dev/Blenvy",
-    "tracker_url": "https://github.com/kaosat-dev/Blenvy/issues/new",
+#    "wiki_url": "https://github.com/kaosat-dev/Blenvy",
+#    "tracker_url": "https://github.com/kaosat-dev/Blenvy/issues/new",
     "category": "Import-Export"
 }
+
+from .add_ons.bevy_components import registry
+
+def register():
+    print("Registering BlenvyGreetings addon")
+    registry.register()
+
+def unregister():
+    registry.unregister()
+
+if __name__ == "__main__":
+    register()
 
 import bpy
 from bpy.app.handlers import persistent

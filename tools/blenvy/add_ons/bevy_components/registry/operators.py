@@ -7,6 +7,15 @@ from ....settings import upsert_settings
 from ..components.metadata import ensure_metadata_for_all_items
 from ..propGroups.prop_groups import generate_propertyGroups_for_components
 
+def register():
+    print("Registering operators in operators.py")
+    bpy.utils.register_class(BLENVY_OT_components_registry_reload)
+    bpy.utils.register_class(BLENVY_OT_components_registry_browse_schema)
+
+def unregister():
+    bpy.utils.unregister_class(BLENVY_OT_components_registry_reload)
+    bpy.utils.unregister_class(BLENVY_OT_components_registry_browse_schema)
+
 class BLENVY_OT_components_registry_reload(Operator):
     """Reloads registry (schema file) from disk, generates propertyGroups for components & ensures all objects have metadata """
     bl_idname = "blenvy.components_registry_reload"

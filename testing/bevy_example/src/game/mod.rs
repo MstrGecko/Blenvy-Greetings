@@ -12,10 +12,14 @@ use blenvy::{
 };
 
 use crate::{AppState, GameState};
+/* 
 use bevy::{
-    prelude::*, render::view::screenshot::ScreenshotManager, time::common_conditions::on_timer,
+    prelude::*, render::screenshot::ScreenshotManager, time::common_conditions::on_timer,
     window::PrimaryWindow,
-};
+};*/
+use bevy::{prelude::*, time::common_conditions::on_timer}; 
+// this line gives the start game function a Primary window and timer,
+//this commented code is due to render::screenshot::ScreenshotManager not being in 0.15.3 
 
 use json_writer::to_json_string;
 
@@ -115,6 +119,8 @@ fn validate_export(
     .expect("Unable to write file");
 }
 
+/*  See line 17
+tldr this commented code is due to render::screenshot::ScreenshotManager not being in 0.15.3 
 fn generate_screenshot(
     main_window: Query<Entity, With<PrimaryWindow>>,
     mut screenshot_manager: ResMut<ScreenshotManager>,
@@ -122,7 +128,7 @@ fn generate_screenshot(
     screenshot_manager
         .save_screenshot_to_disk(main_window.single(), "screenshot.png")
         .unwrap();
-}
+}*/
 
 fn exit_game(mut app_exit_events: ResMut<Events<bevy::app::AppExit>>) {
     app_exit_events.send(bevy::app::AppExit::Success);
@@ -183,7 +189,8 @@ impl Plugin for GamePlugin {
             .add_systems(Update, play_animations) // check_animations
             //.add_systems(Update, react_to_animation_markers)
 
-            .add_systems(Update, generate_screenshot.run_if(on_timer(Duration::from_secs_f32(0.2)))) // TODO: run once
+            //this commented code is due to render::screenshot::ScreenshotManager not being in 0.15.3 
+           // .add_systems(Update, generate_screenshot.run_if(on_timer(Duration::from_secs_f32(0.2)))) // TODO: run once
             .add_systems(
                 Update,
                 exit_game.run_if(on_timer(Duration::from_secs_f32(0.5))),

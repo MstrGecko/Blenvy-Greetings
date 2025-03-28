@@ -1,7 +1,7 @@
 use std::path::Path;
-
+//use bevy::scene::SceneRoot as BevySceneBundle;
 use bevy::{gltf::Gltf, prelude::*, scene::SceneInstance, utils::hashbrown::HashMap};
-
+ 
 use crate::{
     AnimationInfos, AssetLoadTracker, AssetToBlueprintInstancesMapper, BlueprintAnimationInfosLink,
     BlueprintAnimationPlayerLink, BlueprintAnimations, BlueprintAssetsLoadState,
@@ -23,6 +23,7 @@ pub struct BlueprintInfo {
     pub name: String,
     pub path: String,
 }
+
 
 impl BlueprintInfo {
     pub fn from_path(path: &str) -> BlueprintInfo {
@@ -454,86 +455,61 @@ pub(crate) fn blueprints_assets_loaded(
     all_children: Query<&Children>,
     assets_gltf: Res<Assets<Gltf>>,
     asset_server: Res<AssetServer>,
-
     mut graphs: ResMut<Assets<AnimationGraph>>,
-
     mut commands: Commands,
 ) {
     for (entity, blueprint_info, maybe_transform, name) in spawn_placeholders.iter() {
-        /*info!(
-            "BLUEPRINT: all assets loaded, attempting to spawn blueprint SCENE {:?} for entity {:?}, id: {:}, parent:{:?}",
-            blueprint_info.name, name, entity, original_parent
-        );*/
-
         info!(
             "Step 3: all assets loaded, attempting to spawn blueprint scene {:?} for entity {:?}, id: {}",
             blueprint_info, name, entity
         );
-
-        // info!("attempting to spawn {:?}", model_path);
+        // Load the GLTF asset
         let model_handle: Handle<Gltf> = asset_server.load(blueprint_info.path.clone());
+        let blueprint_gltf = assets_gltf.get(&model_handle).expect("GLTF file should be loaded");
 
-        let blueprint_gltf = assets_gltf.get(&model_handle).unwrap_or_else(|| {
-            panic!(
-                "gltf file {:?} should have been loaded",
-                &blueprint_info.path
-            )
-        });
-
-        // WARNING we work under the assumtion that there is ONLY ONE named scene, and that the first one is the right one
+        // Get the main scene
         let main_scene_name = blueprint_gltf
             .named_scenes
             .keys()
             .next()
-            .expect("there should be at least one named scene in the gltf file to spawn");
+            .expect("At least one named scene should exist");
+        let scene: Handle<Scene> = blueprint_gltf.named_scenes[main_scene_name].clone();
+        info!("Step 3:1");
 
-        let scene = &blueprint_gltf.named_scenes[main_scene_name];
+        // Handle transform and global_transform
+        let (_transform, _global_transform) = maybe_transform
+            .unwrap_or((&Transform::default(), &GlobalTransform::default()));
 
-        // transforms are optional, but still deal with them correctly
-        let (transform, global_transform) = match maybe_transform {
-            Some((transform, global_transform)) => (*transform, *global_transform),
-            None => (Transform::default(), GlobalTransform::default()),
-        };
-
-        let mut original_children: Vec<Entity> = vec![];
-        if let Ok(c) = all_children.get(entity) {
-            for child in c.iter() {
-                original_children.push(*child);
-            }
+        // Collect original children
+        let mut original_children = Vec::new();
+        if let Ok(children) = all_children.get(entity) {
+            original_children.extend(children.iter().copied());
         }
+        info!("Step 3:2");
 
-        // TODO: not a fan of this
-        // prepare data for animations
+        // Build animation graph
         let mut graph = AnimationGraph::new();
         let mut named_animations: HashMap<String, Handle<AnimationClip>> = HashMap::new();
         let mut named_indices: HashMap<String, AnimationNodeIndex> = HashMap::new();
 
         for (key, clip) in blueprint_gltf.named_animations.iter() {
             named_animations.insert(key.to_string(), clip.clone());
-            let animation_index = graph.add_clip(clip.clone(), 1.0, graph.root);
-            named_indices.insert(key.to_string(), animation_index);
+            let index = graph.add_clip(clip.clone(), 1.0, graph.root);
+            named_indices.insert(key.to_string(), index);
         }
-        let graph = graphs.add(graph);
-
-        //debug!("Named animations : {:?}", named_animations.keys());
-        //debug!("ANIMATION INFOS: {:?}", animation_infos);
-
+        let graph_handle = graphs.add(graph);
+        info!("Step 3:3");
+        // Insert components into the entity
         commands.entity(entity).insert((
-            SceneBundle {
-                scene: scene.clone(),
-                transform,
-                global_transform,
-                ..Default::default()
-            },
+            SceneRoot(scene),
             OriginalChildren(original_children),
             BlueprintAnimations {
-                // TODO: perhaps swap this out with InstanceAnimations depending on whether we are spawning a level or a simple blueprint
-                // these are animations specific to the blueprint
                 named_animations,
                 named_indices,
-                graph,
+                graph: graph_handle,
             },
         ));
+        info!("Step 3:1");
     }
 }
 
@@ -682,25 +658,20 @@ pub(crate) fn blueprints_cleanup_spawned_scene(
     all_children: Query<&Children>,
     all_parents: Query<&Parent>,
     with_animation_infos: Query<&AnimationInfos>,
-    // FIXME: meh
     anims: Query<&BlueprintAnimations>,
-
-    mut commands: Commands,
-
+    mut commands: bevy::ecs::system::Commands,
     all_names: Query<&Name>,
 ) {
     for (original, children, original_children, name, animations) in blueprint_scenes.iter() {
         info!("Step 5: Cleaning up spawned scene {:?}", name);
 
         if children.len() == 0 {
-            // TODO: investigate, Honestly not sure if this issue from Bevy 0.12 is still present at all anymore
-            warn!("timing issue ! no children found, please restart your bevy app (bug being investigated)");
+            warn!("Timing issue! No children found, please restart your Bevy app (bug being investigated)");
             continue;
         }
-        // the root node is the first & normally only child inside a scene, it is the one that has all relevant components
-        let mut blueprint_root_entity = Entity::PLACEHOLDER; //FIXME: and what about childless ones ?? => should not be possible normally
-                                                             // let diff = HashSet::from_iter(original_children.0).difference(HashSet::from_iter(children));
-                                                             // we find the first child that was not in the entity before (aka added during the scene spawning)
+
+        // Find the blueprint root entity
+        let mut blueprint_root_entity = Entity::PLACEHOLDER;
         for child in children.iter() {
             if !original_children.0.contains(child) {
                 blueprint_root_entity = *child;
@@ -708,54 +679,51 @@ pub(crate) fn blueprints_cleanup_spawned_scene(
             }
         }
 
-        // we flag all children of the blueprint instance with 'FromBlueprint'
-        // can be usefull to filter out anything that came from blueprints vs normal children
+        // Mark all descendants with FromBlueprint
         for child in all_children.iter_descendants(blueprint_root_entity) {
-            commands.entity(child).insert(FromBlueprint); // we do this here in order to avoid doing it to normal children
+            commands.entity(child).insert(FromBlueprint);
         }
 
-        // copy components into from blueprint instance's blueprint_root_entity to original entity
-        commands.add(CopyComponents {
+        // Copy components from blueprint_root_entity to original, excluding Parent and Children
+        commands.queue(CopyComponents {
             source: blueprint_root_entity,
             destination: original,
             exclude: vec![TypeId::of::<Parent>(), TypeId::of::<Children>()],
             stringent: false,
         });
 
-        // we move all of children of the blueprint instance one level to the original entity to avoid having an additional, useless nesting level
+        // Reparent children to the original entity
         if let Ok(root_entity_children) = all_children.get(blueprint_root_entity) {
             for child in root_entity_children.iter() {
-                // info!("copying child {:?} upward from {:?} to {:?}", names.get(*child), blueprint_root_entity, original);
                 commands.entity(original).add_child(*child);
             }
         }
 
-        if animations.named_animations.keys().len() > 0 {
-            for (entity_with_player, parent) in animation_players.iter() {
-                if parent.get() == blueprint_root_entity {
-                    debug!(
-                        "FOUND ANIMATION PLAYER FOR {:?} {:?} ",
-                        all_names.get(original),
-                        all_names.get(entity_with_player)
-                    );
-                    // FIXME: stopgap solution: since we cannot use an AnimationPlayer at the root entity level
-                    // and we cannot update animation clips so that the EntityPaths point to one level deeper,
-                    // BUT we still want to have some marker/control at the root entity level, we add this
-                    commands
-                        .entity(original)
-                        .insert((BlueprintAnimationPlayerLink(entity_with_player),)); // FIXME : this is only valid for per-blueprint logic, no per scene animations
+        // Handle animations if present
+        if !animations.named_animations.is_empty() {
+    for (entity_with_player, parent) in animation_players.iter() {
+        if parent.get() == blueprint_root_entity {
+            debug!(
+                "FOUND ANIMATION PLAYER FOR {:?} {:?} ",
+                all_names.get(original),
+                all_names.get(entity_with_player)
+            );
+            commands
+                .entity(original)
+                .insert(BlueprintAnimationPlayerLink(entity_with_player));
 
-                    // since v0.14 you need both AnimationTransitions and AnimationGraph components/handle on the same entity as the animationPlayer
-                    let transitions = AnimationTransitions::new();
-                    commands
-                        .entity(entity_with_player)
-                        .insert((transitions, animations.graph.clone()));
-                }
+            let transitions = AnimationTransitions::new();
+            commands
+                .entity(entity_with_player)
+                .insert(transitions)
+                .insert(AnimationGraphHandle(animations.graph.clone()));
+                //.insert(animations.graph.clone());
             }
-            // FIXME VERY convoluted, but it works
+         }
+       
+
             for child in all_children.iter_descendants(blueprint_root_entity) {
                 if with_animation_infos.get(child).is_ok() {
-                    // player is already on the same entity as the animation_infos
                     if animation_players.get(child).is_ok() {
                         debug!(
                             "found BLUEPRINT animation player for {:?} at {:?} Root: {:?}",
@@ -763,27 +731,17 @@ pub(crate) fn blueprints_cleanup_spawned_scene(
                             all_names.get(child),
                             all_names.get(original)
                         );
-                        commands.entity(original).insert(
-                            //BlueprintAnimationPlayerLink(bla),
-                            BlueprintAnimationInfosLink(child),
-                        );
+                        commands
+                            .entity(original)
+                            .insert(BlueprintAnimationInfosLink(child));
                     } else {
                         for parent in all_parents.iter_ancestors(child) {
                             if animation_players.get(parent).is_ok() {
-                                /*debug!(
-                                    "found SCENE animation player for {:?} at {:?} Root: {:?}",
-                                    all_names.get(child),
-                                    all_names.get(parent),
-                                    all_names.get(original)
-                                );
-                                debug!("INSERTING SCENE ANIMATIONS INTO");*/
                                 let original_animations = anims.get(original).unwrap();
                                 commands.entity(child).insert((
                                     InstanceAnimationPlayerLink(parent),
                                     InstanceAnimations {
-                                        named_animations: original_animations
-                                            .named_animations
-                                            .clone(),
+                                        named_animations: original_animations.named_animations.clone(),
                                         named_indices: original_animations.named_indices.clone(),
                                         graph: original_animations.graph.clone(),
                                     },
@@ -800,12 +758,13 @@ pub(crate) fn blueprints_cleanup_spawned_scene(
             }
         }
 
+        // Finalize cleanup
         commands
             .entity(original)
-            .remove::<BlueprintChildrenReady>() // we are done with this step, we can remove the `BlueprintChildrenReady` tag component
-            .insert(BlueprintReadyForPostProcess); // Tag the entity so any systems dealing with post processing can know it is now their "turn"
+            .remove::<BlueprintChildrenReady>()
+            .insert(BlueprintReadyForPostProcess);
 
-        commands.entity(blueprint_root_entity).despawn_recursive(); // Remove the root entity that comes from the spawned-in scene
+        commands.entity(blueprint_root_entity).despawn_recursive();
     }
 }
 

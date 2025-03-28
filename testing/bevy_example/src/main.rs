@@ -13,14 +13,14 @@ mod dupe_components;
 mod test_components;
 use test_components::*;
 
-mod hierarchy_debug;
-use hierarchy_debug::*;
+//mod hierarchy_debug;
+//use hierarchy_debug::*;
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins.set(AssetPlugin::default()),
-            HiearchyDebugPlugin,
+            //HiearchyDebugPlugin,
             // our custom plugins
             // CommonPlugin,
             StatePlugin,

@@ -1,16 +1,15 @@
 schema_version = "1.0.0"
 
-id = "BlenvyGreetings"
-version = "0.1.0-alpha.1"
-name = "BlenvyGreetingss"
+id = "Blenvy"
+version = "0.1.0"
+name = "Blenvy"
 tagline = "Tools to add/edit components of objects, collections etc & create blueprints & levels for the Bevy Engine in Blender"
-# pre-fork-maintainer = "kaosat-dev <https://github.com/kaosat-dev/>"
-maintainer = "MstrGecko"
+maintainer = "kaosat-dev <https://github.com/kaosat-dev/>"
 type = "add-on"
 
 # Optional link to documentation, support, source files, etc
 # website = "https://extensions.blender.org/add-ons/my-example-package/"
-#website = "https://github.com/kaosat-dev/Blenvy"
+website = "https://github.com/kaosat-dev/Blenvy"
 
 # Optional list defined by Blender and server, see:
 # https://docs.blender.org/manual/en/dev/advanced/extensions/tags.html
@@ -27,7 +26,7 @@ license = [
   "SPDX:MIT"
 ]
 copyright = [
-   "2023-2024 MstrGecko",
+   "2023-2024 kaosat-dev",
 ]
 
 # Optional list of supported platforms. If omitted, the extension will be available in all operating systems.

@@ -11,29 +11,28 @@ pub struct HiearchyDebugTag;
 pub fn setup_hierarchy_debug(mut commands: Commands) {
     // a place to display the extras on screen
     commands.spawn((
-        TextBundle::from_section(
-            "",
-            TextStyle {
-                color: LinearRgba {
-                    red: 1.0,
-                    green: 1.0,
-                    blue: 1.0,
-                    alpha: 1.0,
-                }
-                .into(),
-                font_size: 15.,
-                ..default()
-            },
-        )
-        .with_style(Style {
-            position_type: PositionType::Absolute,
-            top: Val::Px(12.0),
-            left: Val::Px(12.0),
+        blenvy::Text("".to_string()),
+        TextFont {
+            font_size: 15.,
             ..default()
-        }),
+        },
+        TextColor(Color::LinearRgba(LinearRgba {
+            red: 1.0,
+            green: 1.0,
+            blue: 1.0,
+            alpha: 1.0,
+        })),
+        Node {
+
+               position_type: PositionType::Absolute,
+               top: Val::Px(12.0),
+               left: Val::Px(12.0),
+           
+           ..default()
+        },        
         HiearchyDebugTag,
     ));
-}
+}          
 
 pub fn get_descendants(
     all_children: &Query<&Children>,

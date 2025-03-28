@@ -26,6 +26,8 @@ pub struct BlenvyConfig {
 
     // blueprints
     pub(crate) aabb_cache: HashMap<String, Aabb>, // cache for aabbs
+
+    // taz being stupid
     pub(crate) materials_cache: HashMap<String, Handle<StandardMaterial>>, // cache for materials
 
     // save & load

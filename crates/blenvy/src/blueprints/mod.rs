@@ -104,9 +104,11 @@ impl Plugin for BlueprintsPlugin {
             .register_type::<Vec<String>>()
             .register_type::<BlueprintAssets>()
             .register_type::<HashMap<String, Vec<String>>>()
+            //grok says add id_test if it"s not there, sadly we dont trust grok so we havent done that
+            //.register_type::<Id_test>()
             .add_plugins(RonAssetPlugin::<BlueprintPreloadAssets>::new(&["meta.ron"]))
             .configure_sets(
-                Update,
+               Update,
                 (
                     GltfComponentsSet::Injection,
                     GltfBlueprintsSet::Spawn,
